@@ -289,12 +289,109 @@ class OneSegmentWildcardPicker:
         return hashlib.sha256("|".join(state).encode("utf-8")).hexdigest()
 
 
+class JoinStringMultiTextBox:
+    """Join a dynamic number of editable text boxes.
+
+    The joining behavior intentionally matches KJNodes' Join String Multi node:
+    the first value is always retained, while empty values after it are skipped.
+    The web extension adds string_3 and later text boxes when inputcount changes.
+    """
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        text_box = {
+            "default": "",
+            "multiline": True,
+            "dynamicPrompts": False,
+        }
+        return {
+            "required": {
+                "inputcount": (
+                    "INT",
+                    {
+                        "default": 2,
+                        "min": 2,
+                        "max": 1000,
+                        "step": 1,
+                    },
+                ),
+                "delimiter": (
+                    "STRING",
+                    {
+                        "default": " ",
+                        "multiline": False,
+                        "dynamicPrompts": False,
+                    },
+                ),
+                "return_list": ("BOOLEAN", {"default": False}),
+                "string_1": ("STRING", text_box.copy()),
+                "string_2": ("STRING", text_box.copy()),
+                "values_json": (
+                    "STRING",
+                    {
+                        "default": "[]",
+                        "multiline": True,
+                        "dynamicPrompts": False,
+                    },
+                ),
+            }
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("string",)
+    FUNCTION = "combine"
+    CATEGORY = "文本/工具"
+    DESCRIPTION = (
+        "参考 KJNodes 的 Join String Multi：按 inputcount 动态显示可直接编辑的多行文本框，"
+        "用 delimiter 拼接；开启 return_list 时返回文本列表。"
+    )
+
+    def combine(
+        self,
+        inputcount,
+        delimiter,
+        return_list,
+        string_1="",
+        string_2="",
+        values_json="[]",
+        **kwargs,
+    ):
+        count = max(2, min(1000, int(inputcount)))
+        values = None
+        try:
+            serialized_values = json.loads(values_json)
+            if isinstance(serialized_values, list) and len(serialized_values) >= 2:
+                values = ["" if value is None else str(value) for value in serialized_values]
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+        if values is None:
+            values = [string_1, string_2]
+            values.extend(
+                kwargs.get(f"string_{index}", "") for index in range(3, count + 1)
+            )
+
+        values = values[:count]
+        values.extend("" for _ in range(count - len(values)))
+
+        if return_list:
+            return ([values[0], *(value for value in values[1:] if value)],)
+
+        combined = values[0]
+        for value in values[1:]:
+            if value:
+                combined += delimiter + value
+        return (combined,)
+
+
 NODE_CLASS_MAPPINGS = {
     "OneSegmentWildcardPicker": OneSegmentWildcardPicker,
+    "JoinStringMultiTextBox": JoinStringMultiTextBox,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "OneSegmentWildcardPicker": "多TXT只抽一段（通配符）",
+    "JoinStringMultiTextBox": "多文本框拼接（Join String Multi）",
 }
 
 

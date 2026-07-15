@@ -1,20 +1,24 @@
-# 多 TXT 只抽一段（ComfyUI）
+# comfyui-文本自定义节点
 
-这个节点可以使用任意数量的 TXT，每次执行时只返回其中一个文件的一段文本。
+一个包含两个实用文本节点的 ComfyUI 自定义节点插件：
+
+- `多TXT只抽一段（通配符）`
+- `多文本框拼接（Join String Multi）`
 
 ## 安装
 
-1. 解压 ZIP。
-2. 将整个 `ComfyUI-OneSegment-Wildcard` 文件夹放到 ComfyUI 的 `custom_nodes` 目录。
-3. 重启后在节点顶部点击上传，或直接拖入一个或多个 TXT。
-4. 重启 ComfyUI。
-5. 在节点搜索中输入 `多TXT只抽一段`。
+1. 解压 `comfyui-文本自定义节点.zip`。
+2. 将整个 `comfyui-文本自定义节点` 文件夹放到 ComfyUI 的 `custom_nodes` 目录。
+3. 重启 ComfyUI，并在浏览器中按 `Ctrl+F5` 强制刷新前端。
+4. 在节点搜索中输入 `多TXT只抽一段` 或 `多文本框拼接`。
 
 本机示例安装位置：
 
 ```text
-E:\ComfyUI_portable_TE_v260619\ComfyUI\custom_nodes\ComfyUI-OneSegment-Wildcard
+E:\ComfyUI_portable_TE_v260619\ComfyUI\custom_nodes\comfyui-文本自定义节点
 ```
+
+从旧版 `ComfyUI-OneSegment-Wildcard` 升级时，请先退出 ComfyUI，再用新目录替换旧目录；节点内部 class ID 保持不变，已有工作流可以继续使用。
 
 ## 文件列表界面
 
@@ -59,3 +63,13 @@ E:\ComfyUI_portable_TE_v260619\ComfyUI\custom_nodes\ComfyUI-OneSegment-Wildcard
 - `顺序组合文本`：从每个已启用 TXT 各抽一段，并按节点中的文件顺序用换行拼接。
 
 上传、开关和删除文件都不需要重启 ComfyUI。
+
+## 多文本框拼接（Join String Multi）
+
+这个节点参考 [KJNodes 的 Join String Multi](https://github.com/kijai/ComfyUI-KJNodes)，但把动态字符串入口直接做成了可编辑的多行文本框，不依赖 KJNodes 插件。
+
+- `inputcount`：文本框数量，范围 2–1000；修改后会立即增减 `string_N` 文本框。
+- `delimiter`：拼接分隔符，默认是一个空格。
+- `return_list`：关闭时输出拼接后的单个字符串；开启时输出字符串列表。
+- `string_1`、`string_2`……：可直接输入多行文本；除第一个文本框外，空文本框会在拼接时跳过。
+- 文本框内容和数量会随工作流保存；临时减小数量后，在本次页面会话中重新增加还能恢复刚才隐藏的内容。
