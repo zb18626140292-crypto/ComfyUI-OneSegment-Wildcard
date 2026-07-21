@@ -366,13 +366,21 @@ class JoinStringMultiTextBox:
             pass
 
         if values is None:
-            values = [string_1, string_2]
-            values.extend(
-                kwargs.get(f"string_{index}", "") for index in range(3, count + 1)
-            )
+            values = ["" for _ in range(count)]
 
         values = values[:count]
         values.extend("" for _ in range(count - len(values)))
+
+        # values_json preserves the editable text-box state, but it can contain
+        # stale/empty values after a widget is converted to a linked input.
+        # Always let ComfyUI's resolved inputs override that persisted state.
+        values[0] = "" if string_1 is None else str(string_1)
+        values[1] = "" if string_2 is None else str(string_2)
+        for index in range(3, count + 1):
+            name = f"string_{index}"
+            if name in kwargs:
+                value = kwargs[name]
+                values[index - 1] = "" if value is None else str(value)
 
         if return_list:
             return ([values[0], *(value for value in values[1:] if value)],)
