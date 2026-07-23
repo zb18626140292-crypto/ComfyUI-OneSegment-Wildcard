@@ -8,6 +8,7 @@ const MIN_INPUTS = 2;
 const MAX_INPUTS = 1000;
 const DYNAMIC_WIDGET = Symbol("joinStringMultiTextBoxDynamic");
 const PERSISTENCE_HOOK = Symbol("joinStringMultiTextBoxPersistenceHook");
+const LINKED_VISIBILITY_HOOK = Symbol("joinStringMultiTextBoxLinkedVisibilityHook");
 const TEXT_CONFIG = [
     "STRING",
     {
@@ -16,6 +17,27 @@ const TEXT_CONFIG = [
         dynamicPrompts: false,
     },
 ];
+
+
+function widgetElement(widget) {
+    return widget?.element ?? widget?.inputEl ?? null;
+}
+
+
+function keepVisibleWhenLinked(node, widget) {
+    if (!widget || widget[LINKED_VISIBILITY_HOOK]) return;
+    widget[LINKED_VISIBILITY_HOOK] = true;
+
+    // ComfyUI frontend 1.47+ marks a DOM widget as computedDisabled while its
+    // matching input socket is linked. The stock DOM-widget isVisible() then
+    // hides the element completely. Keep this node's text boxes visible; the
+    // frontend can still render them read-only while the link supplies data.
+    if (typeof widget.isVisible === "function") {
+        widget.isVisible = function () {
+            return !this.hidden && node.isWidgetVisible?.(this) !== false;
+        };
+    }
+}
 
 
 function clampInputCount(value) {
@@ -35,7 +57,8 @@ function installDynamicTextBoxes(node) {
     stateWidget.type = "hidden";
     stateWidget.computeSize = () => [0, 0];
     stateWidget.draw = () => {};
-    if (stateWidget.inputEl) stateWidget.inputEl.style.display = "none";
+    const stateElement = widgetElement(stateWidget);
+    if (stateElement) stateElement.style.display = "none";
 
     function readSerializedValues(value) {
         try {
@@ -51,7 +74,7 @@ function installDynamicTextBoxes(node) {
         const values = [];
         for (let index = 1; index <= count; index++) {
             const widget = node.widgets?.find((item) => item.name === `string_${index}`);
-            values.push(String(widget?.inputEl?.value ?? widget?.value ?? ""));
+            values.push(String(widgetElement(widget)?.value ?? widget?.value ?? ""));
         }
         return values;
     }
@@ -74,20 +97,23 @@ function installDynamicTextBoxes(node) {
         if (!widget) return;
         const text = String(value ?? "");
         widget.value = text;
-        if (widget.inputEl) widget.inputEl.value = text;
+        const element = widgetElement(widget);
+        if (element) element.value = text;
     }
 
     function hookTextWidget(widget) {
         if (!widget || widget[PERSISTENCE_HOOK]) return;
         widget[PERSISTENCE_HOOK] = true;
+        keepVisibleWhenLinked(node, widget);
         const oldCallback = widget.callback;
         widget.callback = function () {
             const result = oldCallback?.apply(this, arguments);
             persistCurrentValues();
             return result;
         };
-        widget.inputEl?.addEventListener?.("input", persistCurrentValues);
-        widget.inputEl?.addEventListener?.("change", persistCurrentValues);
+        const element = widgetElement(widget);
+        element?.addEventListener?.("input", persistCurrentValues);
+        element?.addEventListener?.("change", persistCurrentValues);
     }
 
     function dynamicWidgets() {
@@ -106,9 +132,10 @@ function installDynamicTextBoxes(node) {
     }
 
     function removeTextBox(widget) {
-        cachedValues.set(widget.name, widget.inputEl?.value ?? widget.value ?? "");
+        const element = widgetElement(widget);
+        cachedValues.set(widget.name, element?.value ?? widget.value ?? "");
         widget.onRemove?.();
-        widget.inputEl?.remove?.();
+        element?.remove?.();
         const index = node.widgets?.indexOf(widget) ?? -1;
         if (index >= 0) node.widgets.splice(index, 1);
     }
